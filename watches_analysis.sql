@@ -89,3 +89,40 @@ SELECT *
 FROM BrandCounts
 WHERE total > 5000
 ORDER BY total DESC;
+
+-- 8. Calculate Year-over-Year (YoY) production dynamics for Rolex with year text cleaning
+WITH CleanData AS (
+    -- Step 1: Clean the year (extract first 4 characters) and filter out garbage data
+    SELECT SUBSTR(yop, 1, 4) AS clean_year
+    FROM Watches
+    WHERE brand = 'Rolex' 
+      AND yop IS NOT NULL 
+      AND yop != 'Unknown'
+),
+YearlyCounts AS (
+    -- Step 2: Aggregate totals using the cleaned years
+    SELECT clean_year, COUNT(*) AS watches_produced
+    FROM CleanData
+    GROUP BY clean_year
+)
+-- Step 3: Apply LAG function based on strict chronological order
+SELECT 
+    clean_year, 
+    watches_produced,
+    LAG(watches_produced) OVER(ORDER BY clean_year) AS prev_year_produced,
+    watches_produced - LAG(watches_produced) OVER(ORDER BY clean_year) AS yoy_diff
+FROM YearlyCounts
+ORDER BY clean_year DESC;
+
+-- 9. Rank brands by total number of listings (RANK vs DENSE_RANK comparison)
+WITH BrandTotals AS (
+    SELECT brand, COUNT(*) AS total_listings
+    FROM Watches
+    GROUP BY brand
+)
+SELECT 
+    brand, 
+    total_listings,
+    RANK() OVER(ORDER BY total_listings DESC) AS rank_normal,
+    DENSE_RANK() OVER(ORDER BY total_listings DESC) AS rank_dense
+FROM BrandTotals;
